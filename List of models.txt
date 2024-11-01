@@ -1,0 +1,10 @@
+Watermark
+1. OPT 125M
+2. OPT Models with larger parameters
+3. Other Models (llama 3 1B)
+
+Attacker
+1. GPT 4
+2. Gemini
+3. Llama 2
+
