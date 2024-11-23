@@ -1,0 +1,26 @@
+OPT125M
+- Watermark without output (token: 500):
+ reported to be produced by the Vermonteran turtle, Fusarium terrapin.
+
+The turtle was named by the late William Preston.
+
+The species was first described by the American conservationist John S. Sanderson in the 1920s. The turtle was found in Bermuda in the early 1930s and was named after William Preston. The turtle has a distinct characteristic yellow yellow color, but it also has a blackish-black pattern on its body. It has a large yellow ring on its body that is shaped like the small opening in its head. It has a yellow eye with a small white ring on its body.[10]
+
+The species has a distinct characteristic blackish-black pattern on its body. It has a yellow ring on its body that is shaped like the small opening in its head. It has a yellow eye with a small white ring on its body.[10]
+
+The species was named by the American conservationist John S. Sanderson in the 1920s. The turtle was found in Bermuda in the early 1930s and was named after William Preston. The turtle has a distinct characteristic yellow yellow color, but it also has a blackish-black pattern on its body. It has a yellow eye with a small white ring on its body.[10]
+
+The species was named by the American conservationist John S. Sanderson in the 1920s. The turtle was found in Bermuda in the early 1930s and was named after William Preston. The turtle has a distinct characteristic yellow yellow color, but it also has a blackish-black pattern on its body.[10]
+
+The turtle was named by the American conservationist John S. Sanderson in the 1920s. The turtle was found in Bermuda in the early 1930s and was named after William Preston. The turtle has a distinct characteristic yellow yellow color, but it also has a blackish-black pattern on its body.[10]
+
+The turtle was named by the American conservationist John S. Sanderson in the 1920s. The turtle was found in Bermuda in the early 1930s and was named after William Preston. The turtle has a distinct characteristic yellow yellow color, but it also has a blackish-black pattern on its body.[10]
+
+The turtle was named by the American conservationist John S. Sanderson in the 1920s. The turtle was found in Bermuda in the early 1930s and was named after William Preston. The turtle has a
+
+-----------------------------------------------------------------------------------------------------------------------------------------------------
+
+1. Try with model with 8B parameters
+2. Try with upload the code on compute Canada
+
+3. Quality of the output is not good, to generate, group the token which are symmetrically similar, how to group it? aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa

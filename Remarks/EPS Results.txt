@@ -1,0 +1,5 @@
+gpt2: Adaptive `eps` value calculated as: 4.11496114730835
+
+gpt2-medium: Adaptive `eps` value calculated as: 3.6436620712280274
+
+gpt2-large: Adaptive `eps` value calculated as: 2.530097484588623
