@@ -23,6 +23,7 @@ from functools import partial
 import numpy as np # for gradio hot reload
 import gradio as gr
 
+
 import hdbscan
 import torch
 import pandas as pd
@@ -37,6 +38,8 @@ from transformers import (AutoTokenizer,
 
 from watermark_processor import WatermarkLogitsProcessor, WatermarkDetector
 from cluster_score_processor import ClusterBiasLogitsProcessor 
+from calculate_metrics import calculate_bleu_score, calculate_rouge_scorer, calculate_perplexity
+
 # generate_with_watermark_cluster, generate_without_watermark_cluster, generate_with_cluster
 
 def str2bool(v):
@@ -811,26 +814,42 @@ def main(args):
     
     if not args.skip_model_load:
         input_text = (
-        "The diamondback terrapin or simply terrapin (Malaclemys terrapin) is a "
-        "species of turtle native to the brackish coastal tidal marshes of the "
-        "Northeastern and southern United States, and in Bermuda.[6] It belongs "
-        "to the monotypic genus Malaclemys. It has one of the largest ranges of "
-        "all turtles in North America, stretching as far south as the Florida Keys "
-        "and as far north as Cape Cod.[7] The name 'terrapin' is derived from the "
-        "Algonquian word torope.[8] It applies to Malaclemys terrapin in both "
-        "British English and American English. The name originally was used by "
-        "early European settlers in North America to describe these brackish-water "
-        "turtles that inhabited neither freshwater habitats nor the sea. It retains "
-        "this primary meaning in American English.[8] In British English, however, "
-        "other semi-aquatic turtle species, such as the red-eared slider, might "
-        "also be called terrapins. The common name refers to the diamond pattern "
-        "on top of its shell (carapace), but the overall pattern and coloration "
-        "vary greatly. The shell is usually wider at the back than in the front, "
-        "and from above it appears wedge-shaped. The shell coloring can vary "
-        "from brown to grey, and its body color can be grey, brown, yellow, "
-        "or white. All have a unique pattern of wiggly, black markings or spots "
-        "on their body and head. The diamondback terrapin has large webbed "
-        "feet.[9] The species is"
+        # "The diamondback terrapin or simply terrapin (Malaclemys terrapin) is a "
+        # "species of turtle native to the brackish coastal tidal marshes of the "
+        # "Northeastern and southern United States, and in Bermuda.[6] It belongs "
+        # "to the monotypic genus Malaclemys. It has one of the largest ranges of "
+        # "all turtles in North America, stretching as far south as the Florida Keys "
+        # "and as far north as Cape Cod.[7] The name 'terrapin' is derived from the "
+        # "Algonquian word torope.[8] It applies to Malaclemys terrapin in both "
+        # "British English and American English. The name originally was used by "
+        # "early European settlers in North America to describe these brackish-water "
+        # "turtles that inhabited neither freshwater habitats nor the sea. It retains "
+        # "this primary meaning in American English.[8] In British English, however, "
+        # "other semi-aquatic turtle species, such as the red-eared slider, might "
+        # "also be called terrapins. The common name refers to the diamond pattern "
+        # "on top of its shell (carapace), but the overall pattern and coloration "
+        # "vary greatly. The shell is usually wider at the back than in the front, "
+        # "and from above it appears wedge-shaped. The shell coloring can vary "
+        # "from brown to grey, and its body color can be grey, brown, yellow, "
+        # "or white. All have a unique pattern of wiggly, black markings or spots "
+        # "on their body and head. The diamondback terrapin has large webbed "
+        # "feet.[9] The species is"
+        "Donkey Kong Country is a side-scrolling platform game.[2] A reboot of the "
+        "Donkey Kong franchise,[3][4] its story begins when King K. Rool and his army "
+        "of crocodiles, the Kremlings, steal the Kongs' banana hoard.[5][6] The gorilla "
+        "Donkey Kong and his nephew Diddy Kong set out to reclaim the hoard and defeat "
+        "the Kremlings.[6] Donkey and Diddy serve as the player characters of the "
+        "single-player game; they run alongside each other and the player can swap "
+        "between them at will. Donkey is stronger and can defeat enemies more easily; "
+        "Diddy is faster and more agile.[7] Both can walk, run, jump, pick up and throw "
+        "objects, and roll; Donkey can slap the terrain to defeat enemies or find items.[8] "
+        "The player begins in a world map that tracks their progress and provides access "
+        "to the 40 levels.[9][10] The player attempts to complete each level while "
+        "traversing the environment, jumping between platforms, and avoiding enemy and "
+        "inanimate obstacles. Level themes include jungles, underwater reefs, caves, "
+        "mines, mountains, and factories.[11] Some feature unique game mechanics, such as "
+        "rideable minecarts, blasting out of cannons resembling barrels, and swinging ropes.[12] "
+        "Each area ends with a boss fight with a large enemy.[13] Donkey and Diddy can"
         )
 
         args.default_prompt = input_text
@@ -846,11 +865,11 @@ def main(args):
                                                                                             device=device, 
                                                                                             tokenizer=tokenizer)
         
-        # _, _, decoded_output_without_watermark_cluster, decoded_output_with_watermark_cluster, _ = generate_with_watermark_and_cluster(input_text, 
-        #                                                                                     args, 
-        #                                                                                     model=model, 
-        #                                                                                     device=device, 
-        #                                                                                     tokenizer=tokenizer)
+        _, _, decoded_output_without_watermark_cluster, decoded_output_with_watermark_cluster, _ = generate_with_watermark_and_cluster(input_text, 
+                                                                                            args, 
+                                                                                            model=model, 
+                                                                                            device=device, 
+                                                                                            tokenizer=tokenizer)
         
         
         without_watermark_detection_result = detect(decoded_output_without_watermark, 
@@ -864,7 +883,7 @@ def main(args):
 
         print("#"*term_width)
         print("Output without watermark:")
-        print(decoded_output_without_watermark)
+        print(decoded_output_without_watermark_cluster)
         print("-"*term_width)
         print(f"Detection result @ {args.detection_z_threshold}:")
         pprint(without_watermark_detection_result)
@@ -872,13 +891,55 @@ def main(args):
 
         print("#"*term_width)
         print("Output with watermark:")
-        print(decoded_output_with_watermark)
+        print(decoded_output_with_watermark_cluster)
         print("-"*term_width)
         print(f"Detection result @ {args.detection_z_threshold}:")
-        pprint(with_watermark_detection_result)
+        print(with_watermark_detection_result)
         print("-"*term_width)
+        
+        
+        #! Calculate Bleu Score
 
+        bleu_without_watermark_paper, bleu_with_watermark_paper = calculate_bleu_score(input_text, decoded_output_without_watermark, decoded_output_with_watermark)
+        
+        bleu_without_watermark_cluster, bleu_with_watermark_cluster = calculate_bleu_score(input_text, decoded_output_without_watermark_cluster, decoded_output_with_watermark_cluster)
 
+        print(f"BLEU Score for Paper (Without Watermark): {bleu_without_watermark_paper}")
+        print(f"BLEU Score for Paper (With Watermark): {bleu_with_watermark_paper}")
+
+        print(f"BLEU Score for cluster (Without Watermark): {bleu_without_watermark_cluster}")
+        print(f"BLEU Score for cluster (With Watermark): {bleu_with_watermark_cluster}")
+        
+        
+        #! Calculate Rouge Score
+        
+        
+        rouge_without_watermark_paper, rouge_with_watermark_paper = calculate_rouge_scorer(input_text, decoded_output_without_watermark, decoded_output_with_watermark)
+        
+        rouge_without_watermark_cluster, rouge_with_watermark_cluster = calculate_rouge_scorer(input_text, decoded_output_without_watermark_cluster, decoded_output_with_watermark_cluster)
+
+        print(f"Rouge Score for Paper (Without Watermark): {rouge_without_watermark_paper}")
+        print(f"Rouge Score for Paper (With Watermark): {rouge_with_watermark_paper}")
+
+        print(f"Rouge Score for cluster (Without Watermark): {rouge_without_watermark_cluster}")
+        print(f"Rouge Score for cluster (With Watermark): {rouge_with_watermark_cluster}")
+        
+        
+        
+        #! Calculate Perplexity
+        
+        perplexity_without_watermark_paper, perplexity_with_watermark_paper = calculate_perplexity(args.model_name_or_path, decoded_output_without_watermark, decoded_output_with_watermark)
+        
+        perplexity_without_watermark_cluster, perplexity_with_watermark_cluster = calculate_perplexity(args.model_name_or_path, decoded_output_without_watermark_cluster, decoded_output_with_watermark_cluster)
+
+        print(f"Perplexity Score for Paper (Without Watermark): {perplexity_without_watermark_paper}")
+        print(f"Perplexity Score for Paper (With Watermark): {perplexity_with_watermark_paper}")
+
+        print(f"Perplexity Score for cluster (Without Watermark): {perplexity_without_watermark_cluster}")
+        print(f"Perplexity Score for cluster (With Watermark): {perplexity_with_watermark_cluster}")
+        
+        
+        
     # Launch the app to generate and detect interactively (implements the hf space demo)
     if args.run_gradio:
         run_gradio(args, model=model, tokenizer=tokenizer, device=device)

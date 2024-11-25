@@ -28,16 +28,11 @@ print(torch.cuda.get_device_name(0))       # Should display "GeForce GTX 1050"
 arg_dict = {
     'run_gradio': True, 
     'demo_public': False, 
-<<<<<<< HEAD
-    'model_name_or_path': 'gpt2-medium', 
-    # 'model_name_or_path': 'facebook/opt-350m', 
-=======
-    # 'model_name_or_path': 'facebook/opt-125m', 
->>>>>>> 7322bdcaf75031af7bbdff52e477ba444f1cd52c
+    'model_name_or_path': 'gpt2-medium',
     # 'model_name_or_path': 'facebook/opt-1.3b', 
     # 'model_name_or_path': 'facebook/opt-2.7b', 
     # 'model_name_or_path': 'facebook/opt-6.7b',
-    'model_name_or_path': 'facebook/opt-13b',
+    # 'model_name_or_path': 'facebook/opt-13b',
     # 'load_fp16' : True,
     'load_fp16' : False,
     'prompt_max_length': 500, 
@@ -49,7 +44,7 @@ arg_dict = {
     'use_gpu': True, 
     'seeding_scheme': 'simple_1', 
     'gamma': 0.25, 
-    'delta': 2.0, 
+    'delta': 5.0, 
     'normalizers': '', 
     'ignore_repeated_bigrams': False, 
     'detection_z_threshold': 4.0, 
