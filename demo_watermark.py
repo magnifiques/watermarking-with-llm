@@ -444,7 +444,7 @@ def detect(input_text, args, device=None, tokenizer=None):
 
 def run_gradio(args, model=None, device=None, tokenizer=None):
     """Define and launch the gradio demo interface"""
-    generate_partial = partial(generate, model=model, device=device, tokenizer=tokenizer)
+    generate_partial = partial(generate_with_watermark_and_cluster, model=model, device=device, tokenizer=tokenizer)
     detect_partial = partial(detect, device=device, tokenizer=tokenizer)
 
     with gr.Blocks() as demo:
@@ -782,7 +782,7 @@ def create_cluster(model, tokenizer, args):
     # print(f"Clustering completed and results saved to '{args.model_name_or_path}_token_embeddings_with_clusters.csv'")
     
     #* Step 11: After clustering, return a dictionary of token ID to cluster ID
-    df = pd.read_csv('./gpt2_token_embeddings_with_clusters.csv')
+    df = pd.read_csv('./gpt2-medium_token_embeddings_with_clusters_200.csv')
     token_to_cluster = dict(zip(df.index, df['cluster']))
     
     #? Step 12: Optionally, filter out tokens with noise label (-1 in HDBSCAN)
@@ -882,16 +882,24 @@ def main(args):
                                                  tokenizer=tokenizer)
 
         print("#"*term_width)
-        print("Output without watermark:")
+        print("Output without watermark (Paper):")
+        print(decoded_output_without_watermark)
+        
+        print("Output without watermark (Cluster):")
         print(decoded_output_without_watermark_cluster)
+        
         print("-"*term_width)
         print(f"Detection result @ {args.detection_z_threshold}:")
         pprint(without_watermark_detection_result)
         print("-"*term_width)
 
         print("#"*term_width)
-        print("Output with watermark:")
+        print("Output with watermark (Paper):")
+        print(decoded_output_with_watermark)
+        
+        print("Output with watermark (Cluster):")
         print(decoded_output_with_watermark_cluster)
+        
         print("-"*term_width)
         print(f"Detection result @ {args.detection_z_threshold}:")
         print(with_watermark_detection_result)
@@ -923,9 +931,7 @@ def main(args):
 
         print(f"Rouge Score for cluster (Without Watermark): {rouge_without_watermark_cluster}")
         print(f"Rouge Score for cluster (With Watermark): {rouge_with_watermark_cluster}")
-        
-        
-        
+            
         #! Calculate Perplexity
         
         perplexity_without_watermark_paper, perplexity_with_watermark_paper = calculate_perplexity(args.model_name_or_path, decoded_output_without_watermark, decoded_output_with_watermark)
