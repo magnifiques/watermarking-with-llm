@@ -20,7 +20,7 @@ args = Namespace()
 import torch
 import os
 os.environ['CUDA_LAUNCH_BLOCKING'] = '1'
-import torch
+
 print(torch.cuda.is_available())           # Should print True if CUDA is available
 print(torch.version.cuda)                  # Should print the CUDA version compatible with PyTorch
 print(torch.cuda.get_device_name(0))       # Should display "GeForce GTX 1050"
@@ -29,14 +29,14 @@ arg_dict = {
     'run_gradio': True, 
     'demo_public': False, 
     'model_name_or_path': 'gpt2-medium',
-    # 'model_name_or_path': 'facebook/opt-1.3b', 
+    # 'model_name_or_path': 'facebook/opt-350m', 
     # 'model_name_or_path': 'facebook/opt-2.7b', 
     # 'model_name_or_path': 'facebook/opt-6.7b',
     # 'model_name_or_path': 'facebook/opt-13b',
     # 'load_fp16' : True,
     'load_fp16' : False,
-    'prompt_max_length': 500, 
-    'max_new_tokens': 500, 
+    'prompt_max_length': 700, 
+    'max_new_tokens': 600, 
     'generation_seed': 123, 
     'use_sampling': True, 
     'n_beams': 1, 
@@ -44,12 +44,13 @@ arg_dict = {
     'use_gpu': True, 
     'seeding_scheme': 'simple_1', 
     'gamma': 0.8, 
-    'delta': 8.0, 
+    'delta': 2.0, 
     'normalizers': '', 
     'ignore_repeated_bigrams': False, 
     'detection_z_threshold': 4.0, 
     'select_green_tokens': True,
     'skip_model_load': False,
+    'number_clusters': 200,
     'seed_separately': True,
 }
 

@@ -24,11 +24,11 @@ import numpy as np # for gradio hot reload
 import gradio as gr
 
 
-#import hdbscan
+import hdbscan
 import torch
 import pandas as pd
-# from sklearn.cluster import DBSCAN
-# from sklearn.neighbors import NearestNeighbors
+from sklearn.cluster import DBSCAN
+from sklearn.neighbors import NearestNeighbors
 
 
 from transformers import (AutoTokenizer,
@@ -36,12 +36,10 @@ from transformers import (AutoTokenizer,
                           AutoModelForCausalLM,
                           LogitsProcessorList)  
 
-from watermark_processor_cluster import WatermarkLogitsProcessor, WatermarkDetector
-#from cluster_score_processor import ClusterBiasLogitsProcessor 
-from calculate_metrics import calculate_bleu_score, calculate_rouge_score, calculate_perplexity
-
 # from watermark_processor import WatermarkLogitsProcessor, WatermarkDetector
-# generate_with_watermark_cluster, generate_without_watermark_cluster, generate_with_cluster
+from cluster_score_processor import ClusterBiasLogitsProcessor 
+from calculate_metrics import calculate_bleu_score, calculate_rouge_scorer, calculate_perplexity
+from watermark_processor_cluster import WatermarkLogitsProcessor, WatermarkDetector
 
 def str2bool(v):
     """Util function for user friendly boolean flag args"""
@@ -214,8 +212,86 @@ def load_model(args):
 
     return model, tokenizer, device
 
-def generate(prompt, args, model=None, device=None, tokenizer=None):
-    """Instantiate the WatermarkLogitsProcessor according to the watermark parameters
+# def generate(prompt, args, model=None, device=None, tokenizer=None):
+#     """Instatiate the WatermarkLogitsProcessor according to the watermark parameters
+#        and generate watermarked text by passing it to the generate method of the model
+#        as a logits processor. """
+    
+#     print(f"Generating with {args}")
+    
+#     # Generate the token-to-cluster mapping
+#     token_to_cluster = create_cluster(model, tokenizer, args)
+
+#     watermark_processor = WatermarkLogitsProcessor(vocab=list(tokenizer.get_vocab().values()),
+#                                                     gamma=args.gamma,
+#                                                     delta=args.delta,
+#                                                     seeding_scheme=args.seeding_scheme,
+#                                                     select_green_tokens=args.select_green_tokens)
+
+#     gen_kwargs = dict(max_new_tokens=args.max_new_tokens)
+    
+
+#     if args.use_sampling:
+#         gen_kwargs.update(dict(
+#             do_sample=True, 
+#             top_k=0,
+#             temperature=args.sampling_temp
+#         ))
+#     else:
+#         gen_kwargs.update(dict(
+#             num_beams=args.n_beams
+#         ))
+        
+#     cluster_bias_processor = ClusterBiasLogitsProcessor(
+#         token_to_cluster=token_to_cluster,
+#         bias_strength=1.5
+#     )
+
+#     generate_without_watermark = partial(
+#         model.generate,
+#         **gen_kwargs
+#     )
+#     generate_with_watermark = partial(
+#         model.generate,
+#         logits_processor=LogitsProcessorList([watermark_processor]), 
+#         **gen_kwargs
+#     )
+#     if args.prompt_max_length:
+#         pass
+#     elif hasattr(model.config,"max_position_embedding"):
+#         args.prompt_max_length = model.config.max_position_embeddings-args.max_new_tokens
+#     else:
+#         args.prompt_max_length = 2048-args.max_new_tokens
+
+#     tokd_input = tokenizer(prompt, return_tensors="pt", add_special_tokens=True, truncation=True, max_length=args.prompt_max_length).to(device)
+#     truncation_warning = True if tokd_input["input_ids"].shape[-1] == args.prompt_max_length else False
+#     redecoded_input = tokenizer.batch_decode(tokd_input["input_ids"], skip_special_tokens=True)[0]
+
+#     torch.manual_seed(args.generation_seed)
+#     output_without_watermark = generate_without_watermark(**tokd_input)
+
+#     # optional to seed before second generation, but will not be the same again generally, unless delta==0.0, no-op watermark
+#     if args.seed_separately: 
+#         torch.manual_seed(args.generation_seed)
+#     output_with_watermark = generate_with_watermark(**tokd_input)
+
+#     if args.is_decoder_only_model:
+#         # need to isolate the newly generated tokens
+#         output_without_watermark = output_without_watermark[:,tokd_input["input_ids"].shape[-1]:]
+#         output_with_watermark = output_with_watermark[:,tokd_input["input_ids"].shape[-1]:]
+
+#     decoded_output_without_watermark = tokenizer.batch_decode(output_without_watermark, skip_special_tokens=True)[0]
+#     decoded_output_with_watermark = tokenizer.batch_decode(output_with_watermark, skip_special_tokens=True)[0]
+
+#     return (redecoded_input,
+#             int(truncation_warning),
+#             decoded_output_without_watermark, 
+#             decoded_output_with_watermark,
+#             args) 
+#             # decoded_output_with_watermark)
+
+def generate_with_cluster(prompt, args, model=None, device=None, tokenizer=None):
+    """Instatiate the WatermarkLogitsProcessor according to the watermark parameters
        and generate watermarked text by passing it to the generate method of the model
        as a logits processor. """
     
@@ -299,79 +375,6 @@ def generate(prompt, args, model=None, device=None, tokenizer=None):
             args) 
             # decoded_output_with_watermark)
 
-# def generate(prompt, args, human_reference_text, model=None, device=None, tokenizer=None):
-#     """Instatiate the WatermarkLogitsProcessor according to the watermark parameters
-#        and generate watermarked text by passing it to the generate method of the model
-#        as a logits processor. """
-    
-#     print(f"Generating with {args}")
-
-#     watermark_processor = WatermarkLogitsProcessor(vocab=list(tokenizer.get_vocab().values()),
-#                                                     gamma=args.gamma,
-#                                                     delta=args.delta,
-#                                                     seeding_scheme=args.seeding_scheme,
-#                                                     select_green_tokens=args.select_green_tokens)
-
-#     gen_kwargs = dict(max_new_tokens=args.max_new_tokens)
-
-#     if args.use_sampling:
-#         gen_kwargs.update(dict(
-#             do_sample=True, 
-#             top_k=0,
-#             temperature=args.sampling_temp
-#         ))
-#     else:
-#         gen_kwargs.update(dict(
-#             num_beams=args.n_beams
-#         ))
-
-#     generate_without_watermark = partial(
-#         model.generate,
-#         **gen_kwargs
-#     )
-#     generate_with_watermark = partial(
-#         model.generate,
-#         logits_processor=LogitsProcessorList([watermark_processor]), 
-#         **gen_kwargs
-#     )
-#     if args.prompt_max_length:
-#         pass
-#     elif hasattr(model.config,"max_position_embedding"):
-#         args.prompt_max_length = model.config.max_position_embeddings-args.max_new_tokens
-#     else:
-#         args.prompt_max_length = 2048-args.max_new_tokens
-
-#     tokd_input = tokenizer(prompt, return_tensors="pt", add_special_tokens=True, truncation=True, max_length=args.prompt_max_length).to(device)
-#     truncation_warning = True if tokd_input["input_ids"].shape[-1] == args.prompt_max_length else False
-#     redecoded_input = tokenizer.batch_decode(tokd_input["input_ids"], skip_special_tokens=True)[0]
-
-#     torch.manual_seed(args.generation_seed)
-#     output_without_watermark = generate_without_watermark(**tokd_input)
-
-#     # optional to seed before second generation, but will not be the same again generally, unless delta==0.0, no-op watermark
-#     if args.seed_separately: 
-#         torch.manual_seed(args.generation_seed)
-#     output_with_watermark = generate_with_watermark(**tokd_input)
-
-#     if args.is_decoder_only_model:
-#         # need to isolate the newly generated tokens
-#         output_without_watermark = output_without_watermark[:,tokd_input["input_ids"].shape[-1]:]
-#         output_with_watermark = output_with_watermark[:,tokd_input["input_ids"].shape[-1]:]
-
-#     decoded_output_without_watermark = tokenizer.batch_decode(output_without_watermark, skip_special_tokens=True)[0]
-#     decoded_output_with_watermark = tokenizer.batch_decode(output_with_watermark, skip_special_tokens=True)[0]
-
-#     calculate_metrics(args, input_text=prompt, decoded_output_without_watermark=decoded_output_without_watermark,
-#                     decoded_output_with_watermark=decoded_output_with_watermark, human_reference_text=human_reference_text)
-    
-#     return (redecoded_input,
-#             int(truncation_warning),
-#             decoded_output_without_watermark, 
-#             decoded_output_with_watermark,
-#             args) 
-#             # decoded_output_with_watermark)
-
-
 # def generate_with_watermark_and_cluster(prompt, args, model=None, device=None, tokenizer=None):
 #     """Generate text with both watermark and cluster bias processors, and also return the output without watermark or bias."""
     
@@ -379,7 +382,7 @@ def generate(prompt, args, model=None, device=None, tokenizer=None):
     
 #     # Generate the token-to-cluster mapping
 #     token_to_cluster = create_cluster(model, tokenizer, args)
-
+#     # print(token_to_cluster)
 #     # Initialize the watermark processor
 #     watermark_processor = WatermarkLogitsProcessor(
 #         vocab=list(tokenizer.get_vocab().values()),
@@ -389,15 +392,15 @@ def generate(prompt, args, model=None, device=None, tokenizer=None):
 #         select_green_tokens=args.select_green_tokens
 #     )
 
-#     # # Initialize the cluster bias processor
-#     # cluster_bias_processor = ClusterBiasLogitsProcessor(
-#     #     token_to_cluster=token_to_cluster,
-#     #     bias_strength=1.5  # Adjust bias strength as needed
-#     # )
+#     # Initialize the cluster bias processor
+#     cluster_bias_processor = ClusterBiasLogitsProcessor(
+#         token_to_cluster=token_to_cluster,
+#         bias_strength=1.5  # Adjust bias strength as needed
+#     )
 
 #     # Combine the processors in a LogitsProcessorList for watermark and cluster bias
-#     #logits_processors = LogitsProcessorList([watermark_processor, cluster_bias_processor])
-#     logits_processors = LogitsProcessorList([watermark_processor])
+#     logits_processors = LogitsProcessorList([watermark_processor, cluster_bias_processor])
+
 #     # Set generation parameters
 #     gen_kwargs = dict(max_new_tokens=args.max_new_tokens)
 #     if args.use_sampling:
@@ -512,8 +515,7 @@ def detect(input_text, args, device=None, tokenizer=None):
                                         z_threshold=args.detection_z_threshold,
                                         normalizers=args.normalizers,
                                         ignore_repeated_bigrams=args.ignore_repeated_bigrams,
-                                        select_green_tokens=args.select_green_tokens,
-                                        )
+                                        select_green_tokens=args.select_green_tokens)
     if len(input_text)-1 > watermark_detector.min_prefix_len:
         score_dict = watermark_detector.detect(input_text)
         # output = str_format_scores(score_dict, watermark_detector.z_threshold)
@@ -526,7 +528,7 @@ def detect(input_text, args, device=None, tokenizer=None):
 
 def run_gradio(args, model=None, device=None, tokenizer=None):
     """Define and launch the gradio demo interface"""
-    generate_partial = partial(generate, model=model, device=device, tokenizer=tokenizer)
+    generate_partial = partial(generate_with_watermark_and_cluster, model=model, device=device, tokenizer=tokenizer)
     detect_partial = partial(detect, device=device, tokenizer=tokenizer)
 
     with gr.Blocks() as demo:
@@ -864,57 +866,26 @@ def create_cluster(model, tokenizer, args):
     # print(f"Clustering completed and results saved to '{args.model_name_or_path}_token_embeddings_with_clusters.csv'")
     
     #* Step 11: After clustering, return a dictionary of token ID to cluster ID
-    if args.model_name_or_path == 'gpt2-medium':
-        print('Using GPT2-medium')
-        df = pd.read_csv(f'./gpt2-medium_token_embeddings_with_clusters_{args.number_clusters}.csv')
-    else:
-        print('Using OPT-350M')
-        df = pd.read_csv(f'./opt-350m_token_embeddings_with_clusters_{args.number_clusters}.csv')
+    df = pd.read_csv(f'./gpt2-medium_token_embeddings_with_clusters_{args.number_clusters}.csv')
+    print(f"opt-350m_token_embeddings_with_clusters_{args.number_clusters}.csv")
+    
+    required_columns = {'cluster'}
+    if not required_columns.issubset(df.columns):
+        raise ValueError(f"CSV file is missing required columns: {required_columns - set(df.columns)}")
+
+    
     token_to_cluster = dict(zip(df.index, df['cluster']))
+    print(f"Initial token-to-cluster mapping created with {len(token_to_cluster)} tokens.")
     
     #? Step 12: Optionally, filter out tokens with noise label (-1 in HDBSCAN)
     token_to_cluster = {token_id: cluster_id for token_id, cluster_id in token_to_cluster.items() if cluster_id != -1}
+    if not token_to_cluster:
+        raise ValueError("No valid clusters found. Ensure the clustering step was performed correctly.")
     
-    print(f"{args.model_name_or_path} Token to cluster mapping created with {len(token_to_cluster)} tokens.")
+    print(f"Token-to-cluster mapping created with {len(token_to_cluster)} tokens after filtering.")
     
     return token_to_cluster
 
-def calculate_metrics(args, input_text, decoded_output_without_watermark, decoded_output_with_watermark):
-    
-    human_reference_text = "to China, has said a sale is impossible, in part because it would be blocked by the Chinese government. The company argued that the law unfairly singled out TikTok and that a ban would infringe on the First Amendment rights of American users. The judges disagreed with TikTok’s argument. They said the law was “carefully crafted to deal with only control by a foreign adversary,” and didn’t run afoul of the First Amendment. “The government acted solely to protect that freedom from a foreign adversary nation and to limit that adversary’s ability to gather data on people in the United States,” the judges wrote on Friday. American lawmakers and intelligence officials have said that TikTok poses a national security threat under ByteDance. They say that the Chinese government’s oversight of private companies would allow it to use the app to retrieve sensitive information about Americans or to spread propaganda, though they have not publicly shared evidence that this has occurred. They have also noted that apps like Facebook and YouTube are banned in China and that the country does not allow TikTok there. TikTok said that it would appeal the decision to the Supreme Court, which it expected to rule differently. “The Supreme Court has an established historical record of protecting Americans’ right to free speech, and we expect they will do just that on this important constitutional issue,” Michael Hughes, a spokesman for TikTok, said in a statement. He called the ban “outright censorship of the American people.”"
-    
-    blue_with_references, bleu_without_watermark_paper, bleu_with_watermark_paper = calculate_bleu_score(input_text, decoded_output_without_watermark, decoded_output_with_watermark, human_reference_text)
-    
-    print(f"BLEU Score (For Human Generated Text): {blue_with_references}")
-    print(f"BLEU Score (For Without Watermark): {bleu_without_watermark_paper}")
-    print(f"BLEU Score (For With Watermark): {bleu_with_watermark_paper}")
-
-        # print(f"BLEU Score for cluster (Without Watermark): {bleu_without_watermark_cluster}")
-        # print(f"BLEU Score for cluster (With Watermark): {bleu_with_watermark_cluster}")
-        
-        
-    #! Calculate Rouge Score
-        
-        
-    avg_rouge, rouge_without_watermark_paper, rouge_with_watermark_paper = calculate_rouge_score(input_text, decoded_output_without_watermark, decoded_output_with_watermark, human_reference_text)
-        
-        # rouge_without_watermark_cluster, rouge_with_watermark_cluster = calculate_rouge_scorer(input_text, decoded_output_without_watermark_cluster, decoded_output_with_watermark_cluster)
-
-    print(f"Average Rouge Score: {avg_rouge}")
-    print(f"Rouge Score (Without Watermark): {rouge_without_watermark_paper}")
-    print(f"Rouge Score (With Watermark): {rouge_with_watermark_paper}")
-
-        # print(f"Rouge Score for cluster (Without Watermark): {rouge_without_watermark_cluster}")
-        # print(f"Rouge Score for cluster (With Watermark): {rouge_with_watermark_cluster}")
-            
-        #! Calculate Perplexity
-        
-    perplexity_without_watermark_paper, perplexity_with_watermark_paper = calculate_perplexity(args.model_name_or_path, decoded_output_without_watermark, decoded_output_with_watermark)
-        
-        # perplexity_without_watermark_cluster, perplexity_with_watermark_cluster = calculate_perplexity(args.model_name_or_path, decoded_output_without_watermark_cluster, decoded_output_with_watermark_cluster)
-
-    print(f"Perplexity Score (Without Watermark): {perplexity_without_watermark_paper}")
-    print(f"Perplexity Score (With Watermark): {perplexity_with_watermark_paper}")
 
 def main(args): 
     """Run a command line version of the generation and detection operations
@@ -923,7 +894,7 @@ def main(args):
     args.normalizers = (args.normalizers.split(",") if args.normalizers else [])
     print(args)
 
-    print('Till Here')
+    # print('Till Here')
     if not args.skip_model_load:
         model, tokenizer, device = load_model(args)
         print('worked')
@@ -931,7 +902,8 @@ def main(args):
         print('did not load')
         model, tokenizer, device = None, None, None
 
-    
+    # token_to_cluster = create_cluster(model, tokenizer, args)
+    # print(token_to_cluster)
     #Generate and detect, report to stdout
     
     if not args.skip_model_load:
@@ -956,26 +928,24 @@ def main(args):
         # "or white. All have a unique pattern of wiggly, black markings or spots "
         # "on their body and head. The diamondback terrapin has large webbed "
         # "feet.[9] The species is"
-        # "Donkey Kong Country is a side-scrolling platform game.[2] A reboot of the "
-        # "Donkey Kong franchise,[3][4] its story begins when King K. Rool and his army "
-        # "of crocodiles, the Kremlings, steal the Kongs' banana hoard.[5][6] The gorilla "
-        # "Donkey Kong and his nephew Diddy Kong set out to reclaim the hoard and defeat "
-        # "the Kremlings.[6] Donkey and Diddy serve as the player characters of the "
-        # "single-player game; they run alongside each other and the player can swap "
-        # "between them at will. Donkey is stronger and can defeat enemies more easily; "
-        # "Diddy is faster and more agile.[7] Both can walk, run, jump, pick up and throw "
-        # "objects, and roll; Donkey can slap the terrain to defeat enemies or find items.[8] "
-        # "The player begins in a world map that tracks their progress and provides access "
-        # "to the 40 levels.[9][10] The player attempts to complete each level while "
-        # "traversing the environment, jumping between platforms, and avoiding enemy and "
-        # "inanimate obstacles. Level themes include jungles, underwater reefs, caves, "
-        # "mines, mountains, and factories.[11] Some feature unique game mechanics, such as "
-        # "rideable minecarts, blasting out of cannons resembling barrels, and swinging ropes.[12] "
-        # "Each area ends with a boss fight with a large enemy.[13] Donkey and Diddy can"
-        "TikTok is one step closer to disappearing in the United States after a panel of federal judges on Friday unanimously upheld a new law that could lead to the banning of the popular Chinese-owned video app by mid-January. The three judges, in the U.S. Court of Appeals for the District of Columbia Circuit, denied TikTok’s petition to overturn the law. The decision could be a death blow for the app in one of its biggest markets. More than 170 million Americans use TikTok to entertain and inform themselves, turning it into a cultural phenomenon. The looming loss of the app in the United States had spurred concern from free speech advocates and from the creators whose income depends on TikTok. The decision also raises new questions for President-elect Donald J. Trump, who has repeatedly signaled his support for the app, but who doesn’t have a clear path for rescuing it under the new law, which is scheduled to go into effect the day before his inauguration. The law, signed in April, requires TikTok’s Chinese owner, ByteDance, to sell the app to a non-Chinese company by Jan. 19 or face a ban in the United States. TikTok, which has raised national security concerns among politicians since 2020 because of its ties…"
+        "Donkey Kong Country is a side-scrolling platform game.[2] A reboot of the "
+        "Donkey Kong franchise,[3][4] its story begins when King K. Rool and his army "
+        "of crocodiles, the Kremlings, steal the Kongs' banana hoard.[5][6] The gorilla "
+        "Donkey Kong and his nephew Diddy Kong set out to reclaim the hoard and defeat "
+        "the Kremlings.[6] Donkey and Diddy serve as the player characters of the "
+        "single-player game; they run alongside each other and the player can swap "
+        "between them at will. Donkey is stronger and can defeat enemies more easily; "
+        "Diddy is faster and more agile.[7] Both can walk, run, jump, pick up and throw "
+        "objects, and roll; Donkey can slap the terrain to defeat enemies or find items.[8] "
+        "The player begins in a world map that tracks their progress and provides access "
+        "to the 40 levels.[9][10] The player attempts to complete each level while "
+        "traversing the environment, jumping between platforms, and avoiding enemy and "
+        "inanimate obstacles. Level themes include jungles, underwater reefs, caves, "
+        "mines, mountains, and factories.[11] Some feature unique game mechanics, such as "
+        "rideable minecarts, blasting out of cannons resembling barrels, and swinging ropes.[12] "
+        "Each area ends with a boss fight with a large enemy.[13] Donkey and Diddy can"
         )
 
-        
         args.default_prompt = input_text
 
         term_width = 80
@@ -983,9 +953,8 @@ def main(args):
         print("Prompt:")
         print(input_text)
 
-        _, _, decoded_output_without_watermark, decoded_output_with_watermark, _ = generate(input_text, 
-                                                             
-                   args,                                                                       
+        _, _, decoded_output_without_watermark, decoded_output_with_watermark, _ = generate_with_cluster(input_text, 
+                                                                                            args, 
                                                                                             model=model, 
                                                                                             device=device, 
                                                                                             tokenizer=tokenizer)
@@ -997,50 +966,48 @@ def main(args):
         #                                                                                     tokenizer=tokenizer)
         
         
-        # without_watermark_detection_result = detect(decoded_output_without_watermark, 
-        #                                             args, 
-        #                                             device=device, 
-        #                                             tokenizer=tokenizer)
-        # with_watermark_detection_result = detect(decoded_output_with_watermark, 
-        #                                          args, 
-        #                                          device=device, 
-        #                                          tokenizer=tokenizer)
+        without_watermark_detection_result = detect(decoded_output_without_watermark, 
+                                                    args, 
+                                                    device=device, 
+                                                    tokenizer=tokenizer)
+        with_watermark_detection_result = detect(decoded_output_with_watermark, 
+                                                 args, 
+                                                 device=device, 
+                                                 tokenizer=tokenizer)
 
         print("#"*term_width)
-        print("Output without watermark:")
+        print("Output without watermark (Cluster):")
         print(decoded_output_without_watermark)
         
         # print("Output without watermark (Cluster):")
         # print(decoded_output_without_watermark_cluster)
         
-        # print("-"*term_width)
-        # print(f"Detection result @ {args.detection_z_threshold}:")
-        # pprint(without_watermark_detection_result)
-        # print("-"*term_width)
+        print("-"*term_width)
+        print(f"Detection result @ {args.detection_z_threshold}:")
+        pprint(without_watermark_detection_result)
+        print("-"*term_width)
 
-        # print("#"*term_width)
-        print("Output with watermark:")
+        print("#"*term_width)
+        print("Output with watermark (Cluster):")
         print(decoded_output_with_watermark)
         
         # print("Output with watermark (Cluster):")
         # print(decoded_output_with_watermark_cluster)
         
-        # print("-"*term_width)
-        # print(f"Detection result @ {args.detection_z_threshold}:")
-        # print(with_watermark_detection_result)
-        # print("-"*term_width)
+        print("-"*term_width)
+        print(f"Detection result @ {args.detection_z_threshold}:")
+        print(with_watermark_detection_result)
+        print("-"*term_width)
         
-        
-        calculate_metrics(args, input_text, decoded_output_without_watermark, decoded_output_with_watermark)
         
         #! Calculate Bleu Score
 
-        # bleu_without_watermark_paper, bleu_with_watermark_paper = calculate_bleu_score(input_text, decoded_output_without_watermark, decoded_output_with_watermark)
+        bleu_without_watermark_paper, bleu_with_watermark_paper = calculate_bleu_score(input_text, decoded_output_without_watermark, decoded_output_with_watermark)
         
         # bleu_without_watermark_cluster, bleu_with_watermark_cluster = calculate_bleu_score(input_text, decoded_output_without_watermark_cluster, decoded_output_with_watermark_cluster)
 
-        # print(f"BLEU Score for Paper (Without Watermark): {bleu_without_watermark_paper}")
-        # print(f"BLEU Score for Paper (With Watermark): {bleu_with_watermark_paper}")
+        print(f"BLEU Score for Cluster (Without Watermark): {bleu_without_watermark_paper}")
+        print(f"BLEU Score for Cluster (With Watermark): {bleu_with_watermark_paper}")
 
         # print(f"BLEU Score for cluster (Without Watermark): {bleu_without_watermark_cluster}")
         # print(f"BLEU Score for cluster (With Watermark): {bleu_with_watermark_cluster}")
@@ -1049,33 +1016,33 @@ def main(args):
         #! Calculate Rouge Score
         
         
-        # rouge_without_watermark_paper, rouge_with_watermark_paper = calculate_rouge_scorer(input_text, decoded_output_without_watermark, decoded_output_with_watermark)
+        rouge_without_watermark_cluster, rouge_with_watermark_cluster = calculate_rouge_scorer(input_text, decoded_output_without_watermark, decoded_output_with_watermark)
         
         # rouge_without_watermark_cluster, rouge_with_watermark_cluster = calculate_rouge_scorer(input_text, decoded_output_without_watermark_cluster, decoded_output_with_watermark_cluster)
 
-        # print(f"Rouge Score (Without Watermark): {rouge_without_watermark_paper}")
-        # print(f"Rouge Score (With Watermark): {rouge_with_watermark_paper}")
+        # print(f"Rouge Score for Paper (Without Watermark): {rouge_without_watermark_paper}")
+        # print(f"Rouge Score for Paper (With Watermark): {rouge_with_watermark_paper}")
 
-        # print(f"Rouge Score for cluster (Without Watermark): {rouge_without_watermark_cluster}")
-        # print(f"Rouge Score for cluster (With Watermark): {rouge_with_watermark_cluster}")
+        print(f"Rouge Score for cluster (Without Watermark): {rouge_without_watermark_cluster}")
+        print(f"Rouge Score for cluster (With Watermark): {rouge_with_watermark_cluster}")
             
         #! Calculate Perplexity
         
-        # perplexity_without_watermark_paper, perplexity_with_watermark_paper = calculate_perplexity(args.model_name_or_path, decoded_output_without_watermark, decoded_output_with_watermark)
+        perplexity_without_watermark_cluster, perplexity_with_watermark_cluster = calculate_perplexity(args.model_name_or_path, decoded_output_without_watermark, decoded_output_with_watermark)
         
         # perplexity_without_watermark_cluster, perplexity_with_watermark_cluster = calculate_perplexity(args.model_name_or_path, decoded_output_without_watermark_cluster, decoded_output_with_watermark_cluster)
 
-        # print(f"Perplexity Score (Without Watermark): {perplexity_without_watermark_paper}")
-        # print(f"Perplexity Score (With Watermark): {perplexity_with_watermark_paper}")
+        # print(f"Perplexity Score for Paper (Without Watermark): {perplexity_without_watermark_paper}")
+        # print(f"Perplexity Score for Paper (With Watermark): {perplexity_with_watermark_paper}")
 
-        # print(f"Perplexity Score for cluster (Without Watermark): {perplexity_without_watermark_cluster}")
-        # print(f"Perplexity Score for cluster (With Watermark): {perplexity_with_watermark_cluster}")
+        print(f"Perplexity Score for cluster (Without Watermark): {perplexity_without_watermark_cluster}")
+        print(f"Perplexity Score for cluster (With Watermark): {perplexity_with_watermark_cluster}")
         
         
         
     # Launch the app to generate and detect interactively (implements the hf space demo)
-    # if args.run_gradio:
-    #     run_gradio(args, model=model, tokenizer=tokenizer, device=device)
+    if args.run_gradio:
+        run_gradio(args, model=model, tokenizer=tokenizer, device=device)
 
     return
 

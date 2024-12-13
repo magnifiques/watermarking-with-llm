@@ -129,7 +129,10 @@ dmypy.json
 .pyre/
 
 #CSV Files
-/gpt2_token_embeddings_with_clusters.csv
-/gpt2-large_token_embeddings_with_clusters_100.csv
-/gpt2-large_token_embeddings_with_clusters_200 1.csv
+/opt-350m_token_embeddings_with_clusters_200.csv
 /gpt2-medium_token_embeddings_with_clusters_200.csv
+
+
+# Folders
+/Tables and Graphs/
+/Remarks/
